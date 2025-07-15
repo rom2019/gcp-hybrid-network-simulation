@@ -1,0 +1,37 @@
+# terraform.tfvars.example - 변수 값 예제 파일
+# 이 파일을 terraform.tfvars로 복사하고 실제 값을 입력하세요
+
+# 필수 변수
+billing_account_id = "XXXXX-XXXXX-XXXXX"  # 실제 Billing Account ID로 교체
+vpn_shared_secret  = "your-secure-shared-secret-here"  # 안전한 비밀키로 교체
+
+# 선택적 변수 (기본값이 있지만 필요시 변경)
+# organization_id = "123456789012"  # VPC Service Controls 사용시 필요
+# region = "us-central1"
+# zone = "us-central1-a"
+
+# 프로젝트 ID (원하는 경우 변경)
+# dev_project_id = "my-onprem-sim"
+# prod_project_id = "my-gemini-prod"
+
+# 네트워크 CIDR (기본값 사용 권장)
+# dev_vpc_cidr = "10.0.0.0/16"
+# dev_subnet_cidr = "10.0.1.0/24"
+# prod_vpc_cidr = "10.1.0.0/16"
+# prod_subnet_cidr = "10.1.1.0/24"
+
+# VM 설정
+# dev_vm_machine_type = "e2-medium"
+
+# VPC Service Controls 활성화 (Organization 필요)
+# enable_vpc_service_controls = true
+
+# SSH 접속 허용 IP (보안을 위해 특정 IP로 제한 권장)
+# allowed_ssh_source_ranges = ["YOUR_PUBLIC_IP/32"]
+
+# 프로젝트 라벨
+# project_labels = {
+#   environment = "simulation"
+#   purpose     = "gemini-api-test"
+#   team        = "devops"
+# }
