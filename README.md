@@ -35,11 +35,11 @@ graph TB
     
     V1 <-.HA VPN Tunnel.-> V2
     
-    R2 --|"Advertise Route<br/>199.36.153.8/30"|--> R1
-    A -.-|"3. API Call via VPN"| API
+    R2 -- "Advertise Route<br/>199.36.153.8/30" --> R1
+    A -.- "3. API Call via VPN" --> API
     
-    A -->|"1. DNS Query"| DNS
-    DNS -->|"2. Return Private IP"| A
+    A -- "1. DNS Query" --> DNS
+    DNS -- "2. Return Private IP" --> A
     
     style A fill:#e1f5fe
     style API fill:#e3f2fd
