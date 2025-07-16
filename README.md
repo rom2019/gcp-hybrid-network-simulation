@@ -17,30 +17,37 @@
 ## 아키텍처
 
 ```mermaid
-graph TD
-    VM[Dev Workstation 10.0.1.x]
-    DNS[Private DNS Zone googleapis.com]
-    CR1[Dev Cloud Router ASN 64512]
-    VPN1[Dev HA VPN Gateway]
+graph TB
+    subgraph OnPremProject["Project: on-prem-sim"]
+        subgraph DevVPC["VPC: dev-vpc (10.0.0.0/16)"]
+            DevVM["Dev Workstation<br/>10.0.1.x"]
+            DevDNS["Private DNS Zone<br/>googleapis.com → 199.36.153.x"]
+            DevRouter["Cloud Router<br/>ASN: 64512"]
+            DevVPN["HA VPN Gateway"]
+        end
+    end
     
-    CR2[Prod Cloud Router ASN 64513]
-    VPN2[Prod HA VPN Gateway]
-    PGA[Private Google Access Enabled]
+    subgraph ProdProject["Project: gemini-api-prod"]
+        subgraph ProdVPC["VPC: prod-vpc (10.1.0.0/16)"]
+            ProdRouter["Cloud Router<br/>ASN: 64513<br/>Advertises: 199.36.153.8/30"]
+            ProdVPN["HA VPN Gateway"]
+            ProdPGA["Private Google Access<br/>✓ Enabled"]
+        end
+    end
     
-    API[Google APIs 199.36.153.8/30]
+    subgraph GoogleCloud["Google Services"]
+        GoogleAPIs["Google APIs<br/>private.googleapis.com<br/>199.36.153.8/30"]
+    end
     
-    VM --> DNS
-    VM --> CR1
-    DNS --> VM
+    DevVM -->|"1. DNS Query"| DevDNS
+    DevDNS -->|"2. Returns 199.36.153.x"| DevVM
+    DevVM -->|"3. API Request"| DevRouter
     
-    VPN1 --> VPN2
-    VPN2 --> VPN1
+    DevVPN <-->|"HA VPN Tunnels<br/>(2x for redundancy)"| ProdVPN
+    DevRouter <-->|"BGP Session"| ProdRouter
+    ProdRouter -.->|"BGP: Advertises<br/>Google API routes"| DevRouter
     
-    CR1 --> CR2
-    CR2 --> CR1
-    
-    CR2 --> CR1
-    CR1 --> API
+    DevRouter -->|"4. Routes traffic<br/>via VPN tunnel"| GoogleAPIs
 ```
 
 ## 핵심 동작 원리
