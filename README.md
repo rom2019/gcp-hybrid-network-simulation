@@ -11,11 +11,9 @@ graph TB
         subgraph "Dev Project [on-prem-sim]"
             A[Dev Workstation VM<br/>10.0.1.x]
             B[Dev VPC Network<br/>10.0.0.0/16]
-            C[Cloud NAT]
             D[VPN Gateway Dev]
             
             A --> B
-            B --> C
             B --> D
         end
     end
@@ -47,7 +45,6 @@ graph TB
         M[Cloud DNS]
     end
     
-    B -.-> L
     F -.-> L
     B -.-> M
     
@@ -61,7 +58,7 @@ graph TB
 - **Dev Project (on-prem-sim)**: On-premises 환경 시뮬레이션
   - Dev Workstation VM: VS Code/JetBrains IDE 환경 시뮬레이션
   - Dev VPC Network: 10.0.0.0/16 CIDR 범위
-  - Cloud NAT: 외부 인터넷 접속용
+  - Private Google Access: 비활성화 (실제 on-premises 환경 시뮬레이션)
   
 - **Prod Project (gemini-api-prod)**: Gemini API가 호스팅되는 production 환경
   - Prod VPC Network: 10.1.0.0/16 CIDR 범위
@@ -152,8 +149,8 @@ sequenceDiagram
 ### 보안 계층
 1. **네트워크 레벨**
    - 방화벽 규칙으로 트래픽 제어
-   - Private Google Access 활성화
-   - Cloud NAT로 아웃바운드 트래픽 관리
+   - Private Google Access: Prod 환경에서만 활성화
+   - Cloud NAT: Prod 환경에서만 사용
 
 2. **IAM 레벨**
    - Service Account 기반 인증

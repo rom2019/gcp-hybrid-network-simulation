@@ -1,4 +1,5 @@
-# main.tf - Terraform 프로바이더 및 프로젝트 설정
+#################################################
+# main.tf - Terraform Version / Provider / Project
 
 terraform {
   required_version = ">= 1.0"
@@ -19,7 +20,7 @@ terraform {
   }
 }
 
-# 프로바이더 설정
+# Provider
 provider "google" {
   region = var.region
 }
@@ -81,11 +82,11 @@ resource "google_project_service" "prod_apis" {
   disable_on_destroy = false
 }
 
-# VPC Service Controls를 위한 API (선택사항)
+# VPC Service Controls를 위한 API
 resource "google_project_service" "vpc_sc_apis" {
-  for_each = var.enable_vpc_service_controls ? toset([
+  for_each = toset([
     "accesscontextmanager.googleapis.com",
-  ]) : toset([])
+  ])
   
   project = google_project.prod_project.project_id
   service = each.key
