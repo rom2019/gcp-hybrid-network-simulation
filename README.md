@@ -17,43 +17,56 @@
 ## 아키텍처
 
 ```mermaid
-graph TB
-    subgraph "Simulated On-Premises Environment"
-        subgraph "Dev Project: on-prem-sim"
-            A["Dev Workstation VM<br/>10.0.1.x"] --> B{"Dev VPC<br/>10.0.0.0/16"}
-            B --> R1["Cloud Router - Dev<br/>ASN 64512"]
-            R1 --> V1["HA VPN Gateway - Dev"]
-            
-            subgraph "DNS in Dev Project"
-                DNS["Private DNS Zone<br/>googleapis.com -> 199.36.153.8/30"]
+graph LR
+    subgraph "On-Premises (Simulated)"
+        direction TB
+        subgraph "Project: on-prem-sim"
+            VM["fa:fa-laptop Dev Workstation<br>10.0.1.x"]
+
+            subgraph "VPC: on-prem-vpc (10.0.0.0/16)"
+                DNS["fa:fa-server Private DNS Zone<br>googleapis.com -> 199.36.153.8/30"]
+                CR1["fa:fa-route Cloud Router<br>ASN 64512"]
             end
-            B -- "uses" --> DNS
         end
     end
-    
-    subgraph "Google Cloud Production"
-        subgraph "Prod Project: gemini-api-prod"
-            V2["HA VPN Gateway - Prod"] --> R2["Cloud Router - Prod<br/>ASN 64513"]
-            R2 --> F{"Prod VPC<br/>10.1.0.0/16"}
-            F -- "enables" --> PGA["Private Google Access"]
+
+    subgraph "Google Cloud"
+        direction TB
+        subgraph "Project: gemini-api-prod"
+            subgraph "VPC: prod-vpc (10.1.0.0/16)"
+                PGA["fa:fa-lock Private Google Access<br>(Enabled)"]
+                CR2["fa:fa-route Cloud Router<br>ASN 64513"]
+            end
         end
     end
-    
+
+    subgraph " "
+      direction LR
+      VPN_TUNNEL[("fa:fa-shield-alt<br>HA VPN<br>Tunnel")]
+    end
+
+
     subgraph "Google Services"
-        API["Google APIs<br/>(Gemini, etc.)<br/>199.36.153.8/30"]
+       G_API["fa:fa-cloud Google APIs<br>(e.g., Gemini)<br>private.googleapis.com<br>199.36.153.8/30"]
     end
-    
-    V1 <-.HA VPN Tunnel.-> V2
-    
-    R2 -- "Advertise Route<br/>199.36.153.8/30" --> R1
-    A -.- "3. API Call via VPN" --> API
-    
-    A -- "1. DNS Query" --> DNS
-    DNS -- "2. Return Private IP" --> A
-    
-    style A fill:#e1f5fe
-    style API fill:#e3f2fd
-    style R2 stroke:#ff5722,stroke-width:2px
+
+    %% Data Flow
+    VM -- "1. DNS Query" --> DNS
+    DNS -- "2. Return 199.36.153.x" --> VM
+    VM -- "3. API Request" --> CR1
+
+    %% Connections
+    CR1 <--> VPN_TUNNEL <--> CR2
+    CR2 -. "Advertise Route<br>199.36.153.8/30" .-> CR1
+    VPN_TUNNEL -- "4. Route traffic to Google" --> G_API
+
+
+    %% Styling
+    style VM fill:#fef2f2,stroke:#ef4444
+    style G_API fill:#eff6ff,stroke:#3b82f6
+    style CR2 fill:#f0fdf4,stroke:#22c55e
+    style PGA fill:#f0fdf4,stroke:#22c55e
+    style VPN_TUNNEL fill:#fafafa,stroke:#6b7280,stroke-dasharray: 5 5
 ```
 
 ## 핵심 동작 원리
