@@ -82,24 +82,11 @@ resource "google_project_service" "prod_apis" {
   disable_on_destroy = false
 }
 
-# VPC Service Controls를 위한 API
-resource "google_project_service" "vpc_sc_apis" {
-  for_each = toset([
-    "accesscontextmanager.googleapis.com",
-  ])
-  
-  project = google_project.prod_project.project_id
-  service = each.key
-  
-  disable_on_destroy = false
-}
-
 # API 활성화 대기
 resource "time_sleep" "wait_for_apis" {
   depends_on = [
     google_project_service.dev_apis,
     google_project_service.prod_apis,
-    google_project_service.vpc_sc_apis,
   ]
   
   create_duration = "30s"

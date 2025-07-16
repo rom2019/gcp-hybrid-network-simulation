@@ -52,6 +52,13 @@ resource "google_compute_router" "prod_vpn_router" {
     
     advertised_ip_ranges {
       range = var.prod_subnet_cidr
+      description = "Prod Subnet"
+    }
+    
+    # Advertise the Private Google Access IP range to the on-prem network
+    advertised_ip_ranges {
+      range       = "199.36.153.8/30"
+      description = "Private Google Access"
     }
   }
 }

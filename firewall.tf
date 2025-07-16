@@ -170,34 +170,3 @@ resource "google_compute_firewall" "prod_allow_health_check" {
   source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
   target_tags   = ["health-check-allowed"]
 }
-
-# Google APIs access (both VPCs)
-resource "google_compute_firewall" "dev_allow_google_apis" {
-  name    = "dev-allow-google-apis"
-  network = google_compute_network.dev_vpc.name
-  project = google_project.dev_project.project_id
-  
-  allow {
-    protocol = "tcp"
-    ports    = ["443"]
-  }
-  
-  source_ranges      = [var.dev_subnet_cidr]
-  destination_ranges = ["199.36.153.8/30"]  # restricted.googleapis.com
-  priority           = 1000
-}
-
-resource "google_compute_firewall" "prod_allow_google_apis" {
-  name    = "prod-allow-google-apis"
-  network = google_compute_network.prod_vpc.name
-  project = google_project.prod_project.project_id
-  
-  allow {
-    protocol = "tcp"
-    ports    = ["443"]
-  }
-  
-  source_ranges      = [var.prod_subnet_cidr]
-  destination_ranges = ["199.36.153.8/30"]  # restricted.googleapis.com
-  priority           = 1000
-}

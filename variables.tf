@@ -5,11 +5,6 @@ variable "billing_account_id" {
   type        = string
 }
 
-variable "organization_id" {
-  description = "GCP Organization ID (VPC Service Controls를 사용하는 경우 필요)"
-  type        = string
-  default     = ""
-}
 
 variable "region" {
   description = "기본 리전"
@@ -71,11 +66,6 @@ variable "dev_vm_machine_type" {
   default     = "e2-medium"
 }
 
-variable "enable_vpc_service_controls" {
-  description = "VPC Service Controls 활성화 여부"
-  type        = bool
-  default     = false
-}
 
 variable "allowed_ssh_source_ranges" {
   description = "SSH 접속을 허용할 소스 IP 범위"
@@ -96,4 +86,44 @@ variable "user_email" {
   description = "User email for IAP SSH access"
   type        = string
   default = "admin@romij.altostrat.com"
+}
+
+# New IAM User (Service Account) variables
+variable "new_iam_user_id" {
+  description = "Service Account ID for the new IAM user"
+  type        = string
+  default     = "my-service-account"
+}
+
+variable "new_iam_user_display_name" {
+  description = "Display name for the new IAM user"
+  type        = string
+  default     = "My Service Account"
+}
+
+variable "new_iam_user_roles" {
+  description = "List of roles to assign to the new IAM user in dev project"
+  type        = list(string)
+  default = [
+    "roles/viewer",                    # Basic read access
+    "roles/compute.instanceAdmin",     # Manage compute instances
+    "roles/storage.objectViewer",      # Read storage objects
+    "roles/logging.viewer",            # View logs
+    "roles/monitoring.viewer"          # View monitoring data
+  ]
+}
+
+variable "grant_prod_access" {
+  description = "Whether to grant access to prod project"
+  type        = bool
+  default     = false
+}
+
+variable "new_iam_user_prod_roles" {
+  description = "List of roles to assign to the new IAM user in prod project"
+  type        = list(string)
+  default = [
+    "roles/viewer",                    # Basic read access
+    "roles/aiplatform.user"           # Use AI Platform/Gemini API
+  ]
 }

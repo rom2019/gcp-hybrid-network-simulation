@@ -87,30 +87,20 @@ output "gemini_test_instructions" {
   description = "Gemini API 테스트 방법"
   value = <<-EOT
     1. SSH로 Dev VM에 접속:
-       ${google_compute_instance.dev_workstation.name}
+       gcloud compute ssh ${google_compute_instance.dev_workstation.name} --zone=${var.zone} --project=${google_project.dev_project.project_id}
     
-    2. 테스트 스크립트 실행:
-       python3 /home/debian/test_gemini.py
-    
-    3. 또는 직접 API 호출:
-       curl -X POST \
-         -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-         -H "Content-Type: application/json" \
-         -d '{"contents":[{"parts":[{"text":"Hello from simulated on-prem!"}]}]}' \
-         "https://us-central1-aiplatform.googleapis.com/v1/projects/${google_project.prod_project.project_id}/locations/us-central1/publishers/google/models/gemini-pro:generateContent"
+    2. DNS 해석 테스트:
+       nslookup aiplatform.googleapis.com
+       (결과: 199.36.153.x 비공개 IP가 보여야 함)
+
+    3. 네트워크 경로 테스트:
+       sudo traceroute -T -p 443 aiplatform.googleapis.com
+       (결과: 중간에 공인 IP 없이, 비공개 IP 목적지에 도달해야 함)
+
+    4. 최종 API 호출 테스트:
+       curl -H "Authorization: Bearer $(gcloud auth print-access-token)" https://aiplatform.googleapis.com/
   EOT
 }
-
-## VPC Service Controls 정보 (활성화된 경우)
-#output "vpc_service_controls_enabled" {
-#  description = "VPC Service Controls 활성화 여부"
-#  value       = var.enable_vpc_service_controls
-#}
-#
-#output "service_perimeter_name" {
-#  description = "Service Perimeter 이름"
-#  value       = var.enable_vpc_service_controls && var.organization_id != "" ? google_access_context_manager_service_perimeter.gemini_perimeter[0].name : "Not enabled"
-#}
 
 # 중요 참고사항
 output "important_notes" {

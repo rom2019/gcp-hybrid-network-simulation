@@ -1,193 +1,111 @@
-# GCP Hybrid Network Simulation with Gemini API
+# GCP Hybrid Network Simulation for Private API Access
 
-이 프로젝트는 on-premises 환경과 Google Cloud 간의 하이브리드 네트워크를 시뮬레이션합니다.
-Cloud VPN을 통해 안전하게 Gemini Code Assist API에 접근하는 환경을 구성합니다.
+이 프로젝트는 on-premises 환경을 시뮬레이션하여, Cloud VPN을 통해 Google Cloud의 서비스(예: Gemini API)에 **공용 인터넷을 거치지 않고 비공개로 안전하게 접근**하는 하이브리드 네트워크 환경을 구축하고 검증합니다.
 
-## 아키텍처 개요
+이 과정을 통해 우리는 Google Cloud의 Private Google Access가 BGP와 연동하여 동작하는 핵심 원리를 발견하고 증명합니다.
+
+## 최종 아키텍처
 
 ```mermaid
 graph TB
     subgraph "Simulated On-Premises Environment"
         subgraph "Dev Project [on-prem-sim]"
-            A[Dev Workstation VM<br/>10.0.1.x]
-            B[Dev VPC Network<br/>10.0.0.0/16]
-            D[VPN Gateway Dev]
+            A[Dev Workstation VM<br/>10.0.1.x] --> B{Dev VPC<br/>10.0.0.0/16}
+            B --> R1[Cloud Router (Dev)<br/>ASN 64512]
+            R1 --> V1[HA VPN Gateway (Dev)]
             
-            A --> B
-            B --> D
+            subgraph "DNS in Dev"
+                DNS[Private DNS Zone<br/>googleapis.com -> 199.36.153.8/30]
+            end
+            B -- uses --> DNS
         end
     end
     
     subgraph "Google Cloud Production"
         subgraph "Prod Project [gemini-api-prod]"
-            E[VPN Gateway Prod]
-            F[Prod VPC Network<br/>10.1.0.0/16]
-            G[Cloud NAT]
-            
-            subgraph "VPC Service Controls"
-                H[Service Perimeter]
-                I[Gemini for Google Cloud API<br/>Gemini Code Assist]
-            end
-            
-            E --> F
-            F --> G
-            F --> H
-            H --> I
+            V2[HA VPN Gateway (Prod)] --> R2[Cloud Router (Prod)<br/>ASN 64513]
+            R2 --> F{Prod VPC<br/>10.1.0.0/16}
+            F -- enables --> PGA[Private Google Access]
         end
     end
     
-    D -.HA VPN Tunnel<br/>IPSec + BGP.-> E
-    
-    subgraph "Security & Access Control"
-        J[IAM Roles & Policies]
-        K[Firewall Rules]
-        L[Private Google Access]
-        M[Cloud DNS]
+    subgraph "Google Services"
+        API[Google APIs<br/>(Gemini, etc.)<br/>199.36.153.8/30]
     end
     
-    F -.-> L
-    B -.-> M
+    V1 <-.HA VPN Tunnel.-> V2
+    
+    R2 -- "Advertise Route<br/>199.36.153.8/30" --> R1
+    A -.-> API: 3. API Call (via VPN)
+    
+    A --> DNS: 1. DNS Query
+    DNS --> A: 2. Return Private IP
     
     style A fill:#e1f5fe
-    style I fill:#fff3e0
-    style H stroke:#ff5722,stroke-width:2px,stroke-dasharray: 5 5
+    style API fill:#e3f2fd
+    style R2 stroke:#ff5722,stroke-width:2px
 ```
 
-### 아키텍처 구성 요소
+## 핵심 동작 원리
 
-- **Dev Project (on-prem-sim)**: On-premises 환경 시뮬레이션
-  - Dev Workstation VM: VS Code/JetBrains IDE 환경 시뮬레이션
-  - Dev VPC Network: 10.0.0.0/16 CIDR 범위
-  - Private Google Access: 비활성화 (실제 on-premises 환경 시뮬레이션)
-  
-- **Prod Project (gemini-api-prod)**: Gemini API가 호스팅되는 production 환경
-  - Prod VPC Network: 10.1.0.0/16 CIDR 범위
-  - VPC Service Controls: API 보안을 위한 Service Perimeter (선택사항)
-  - Gemini API 엔드포인트 보호
-  
-- **네트워크 연결**
-  - HA Cloud VPN: 고가용성 VPN Gateway
-  - IPSec 터널: 암호화된 연결
-  - BGP 라우팅: 자동 경로 교환
-  
-- **보안 계층**
-  - IAM 역할 기반 액세스 제어
-  - 방화벽 규칙으로 트래픽 제어
-  - Private Google Access로 안전한 API 접근
-  - VPC Service Controls로 데이터 유출 방지
+이 아키텍처의 핵심은 **"BGP 경로 광고가 곧 접근 권한"**이라는 점입니다.
 
-## 사전 요구사항
+1.  **DNS 해석 (Dev VPC)**: Dev VM이 `aiplatform.googleapis.com`을 조회하면, Dev VPC 내의 **자체 비공개 DNS 영역**이 `199.36.153.x`와 같은 비공개 IP를 반환합니다.
+2.  **경로 광고 (Prod VPC)**: Prod VPC의 Cloud Router가 BGP를 통해 **`199.36.153.8/30` 경로를 알고 있다고 VPN 터널 너머로 광고**합니다.
+3.  **라우팅 (Dev VPC)**: Dev VPC의 Cloud Router는 이 광고를 수신하여, `199.36.153.x`로 가는 경로는 VPN 터널을 통과해야 한다는 것을 학습합니다.
+4.  **API 호출**: Dev VM이 비공개 IP로 API를 호출하면, 학습된 경로에 따라 트래픽이 **VPN 터널을 통해 Google 네트워크로 안전하게 전달**됩니다.
+5.  **접근 허가**: Google 네트워크 엣지는 신뢰할 수 있는 VPN 연결을 통해 들어온 트래픽이고, 해당 연결의 BGP 세션이 목적지 경로를 광고하고 있음을 확인하고, **API 접근을 최종적으로 허용**합니다.
 
-1. Google Cloud SDK (gcloud) 설치
-2. Terraform 설치 (v1.0 이상)
-3. GCP Organization 및 Billing Account
-4. 적절한 IAM 권한
+**중요**: 실제 API 트래픽은 Prod VPC를 경유하지 않으며, Prod VPC의 역할은 오직 BGP 경로를 광고하여 Dev VPC에 경로 정보를 알려주고 접근을 허가하는 **"관문"** 역할에 있습니다.
 
 ## 설정 방법
 
-1. 변수 설정
+1.  **변수 설정**: `terraform.tfvars.example` 파일을 `terraform.tfvars`로 복사하고, 실제 프로젝트 환경에 맞게 값을 수정합니다.
+2.  **인프라 배포**:
+    ```bash
+    terraform init
+    terraform apply
+    ```
+
+## 검증 방법
+
+배포가 완료된 후, 다음 단계를 통해 아키텍처가 올바르게 작동하는지 검증할 수 있습니다.
+
+### 1. Dev VM 접속
 ```bash
-cp terraform.tfvars.example terraform.tfvars
-# terraform.tfvars 파일을 편집하여 실제 값 입력
+# [project-suffix]는 terraform output으로 확인
+gcloud compute ssh dev-workstation --zone=us-central1-a --project=on-prem-sim-[project-suffix]
 ```
 
-2. Terraform 초기화
+### 2. DNS 해석 확인
+Dev VM에서 실행합니다. `199.36.153.x` 범위의 비공개 IP가 반환되어야 합니다.
 ```bash
-terraform init
+nslookup aiplatform.googleapis.com
 ```
 
-3. 계획 검토
+### 3. 네트워크 경로 확인 (가장 확실한 방법)
+`tcpdump`와 `traceroute`를 함께 사용하여 트래픽이 비공개 경로로 가는지 확인합니다.
+
 ```bash
-terraform plan
+# Dev VM에서 실행
+# 1. tcpdump 실행 (백그라운드)
+sudo tcpdump -i any -n host aiplatform.googleapis.com &
+
+# 2. API 호출 (트래픽 발생)
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" https://aiplatform.googleapis.com/
+
+# 3. tcpdump 결과 확인: 목적지 IP가 199.36.153.x로 표시되어야 함
+
+# 4. traceroute 실행
+sudo traceroute -T -p 443 aiplatform.googleapis.com
+# 결과: 중간에 공인 IP 없이, 몇 개의 * 뒤에 바로 목적지 IP(199.36.153.x)가 보여야 함
 ```
 
-4. 인프라 생성
-```bash
-terraform apply
-```
-
-## 데이터 플로우 다이어그램
-
-```mermaid
-sequenceDiagram
-    participant Dev as Dev Workstation<br/>(On-prem Sim)
-    participant VPN1 as Dev VPN Gateway
-    participant VPN2 as Prod VPN Gateway
-    participant FW as Firewall Rules
-    participant SC as Service Perimeter
-    participant API as Gemini API
-
-    Dev->>VPN1: 1. API Request<br/>(10.0.1.x)
-    VPN1->>VPN2: 2. IPSec Tunnel<br/>(Encrypted)
-    VPN2->>FW: 3. Traffic Check
-    FW->>SC: 4. Allowed Traffic<br/>(10.1.1.x)
-    SC->>SC: 5. Access Level Check<br/>(IP & Service Account)
-    SC->>API: 6. Authorized Request
-    API-->>SC: 7. API Response
-    SC-->>FW: 8. Return Traffic
-    FW-->>VPN2: 9. Allowed Response
-    VPN2-->>VPN1: 10. IPSec Tunnel
-    VPN1-->>Dev: 11. API Response
-```
-
-## 주요 구성 요소
-
-### 네트워크 구성
-| 구성 요소 | CIDR | 용도 |
-|---------|------|-----|
-| Dev VPC | 10.0.0.0/16 | On-premises 시뮬레이션 |
-| Dev Subnet | 10.0.1.0/24 | 개발 워크스테이션 |
-| Prod VPC | 10.1.0.0/16 | Production 환경 |
-| Prod Subnet | 10.1.1.0/24 | API 서비스 |
-
-### VPN 구성
-- **HA VPN Gateway**: 99.99% SLA 보장
-- **듀얼 터널**: 각 Gateway당 2개 터널 (총 4개)
-- **BGP 라우팅**: ASN 64512 (Dev), ASN 64513 (Prod)
-- **IPSec**: IKEv2 프로토콜 사용
-
-### 보안 계층
-1. **네트워크 레벨**
-   - 방화벽 규칙으로 트래픽 제어
-   - Private Google Access: Prod 환경에서만 활성화
-   - Cloud NAT: Prod 환경에서만 사용
-
-2. **IAM 레벨**
-   - Service Account 기반 인증
-   - 최소 권한 원칙 적용
-   - Audit 로깅 활성화
-
-3. **API 레벨** (VPC Service Controls)
-   - Service Perimeter로 데이터 유출 방지
-   - Access Level로 접근 제어
-   - Context-aware access
-
-## 테스트 방법
-
-1. Dev VM에 SSH 접속
-```bash
-gcloud compute ssh dev-workstation --zone=us-central1-a --project=on-prem-sim
-```
-
-2. Prod 네트워크 연결 테스트
-```bash
-ping 10.1.1.2  # Prod 네트워크의 리소스
-```
-
-3. Gemini API 테스트
-```bash
-curl -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  https://us-central1-aiplatform.googleapis.com/v1/projects/gemini-api-prod/locations/us-central1/publishers/google/models/gemini-pro:predict
-```
+### 4. BGP 경로 광고의 중요성 검증 (심화)
+`vpn.tf` 파일에서 `prod_vpn_router`의 `advertised_ip_ranges`에 있는 `199.36.153.8/30` 블록을 주석 처리하고 `terraform apply`를 실행하면, API 호출이 실패하는 것을 통해 BGP 경로 광고가 핵심임을 증명할 수 있습니다.
 
 ## 정리
 
+인프라 사용이 끝나면 반드시 리소스를 삭제하여 비용이 발생하지 않도록 합니다.
 ```bash
 terraform destroy
-```
-
-## 비용 최적화 팁
-
-- 사용하지 않을 때는 VM 인스턴스 중지
-- VPN은 시간당 과금되므로 테스트 후 삭제 고려
-- Free Tier 리소스 활용
