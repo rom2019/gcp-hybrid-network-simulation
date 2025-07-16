@@ -9,28 +9,28 @@
 ```mermaid
 graph TB
     subgraph "Simulated On-Premises Environment"
-        subgraph "Dev Project [on-prem-sim]"
-            A[Dev Workstation VM<br/>10.0.1.x] --> B{Dev VPC<br/>10.0.0.0/16}
-            B --> R1[Cloud Router (Dev)<br/>ASN 64512]
-            R1 --> V1[HA VPN Gateway (Dev)]
+        subgraph "Dev Project: on-prem-sim"
+            A["Dev Workstation VM<br/>10.0.1.x"] --> B{"Dev VPC<br/>10.0.0.0/16"}
+            B --> R1["Cloud Router - Dev<br/>ASN 64512"]
+            R1 --> V1["HA VPN Gateway - Dev"]
             
-            subgraph "DNS in Dev"
-                DNS[Private DNS Zone<br/>googleapis.com -> 199.36.153.8/30]
+            subgraph "DNS in Dev Project"
+                DNS["Private DNS Zone<br/>googleapis.com -> 199.36.153.8/30"]
             end
-            B -- uses --> DNS
+            B -- "uses" --> DNS
         end
     end
     
     subgraph "Google Cloud Production"
-        subgraph "Prod Project [gemini-api-prod]"
-            V2[HA VPN Gateway (Prod)] --> R2[Cloud Router (Prod)<br/>ASN 64513]
-            R2 --> F{Prod VPC<br/>10.1.0.0/16}
-            F -- enables --> PGA[Private Google Access]
+        subgraph "Prod Project: gemini-api-prod"
+            V2["HA VPN Gateway - Prod"] --> R2["Cloud Router - Prod<br/>ASN 64513"]
+            R2 --> F{"Prod VPC<br/>10.1.0.0/16"}
+            F -- "enables" --> PGA["Private Google Access"]
         end
     end
     
     subgraph "Google Services"
-        API[Google APIs<br/>(Gemini, etc.)<br/>199.36.153.8/30]
+        API["Google APIs<br/>(Gemini, etc.)<br/>199.36.153.8/30"]
     end
     
     V1 <-.HA VPN Tunnel.-> V2
