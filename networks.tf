@@ -45,7 +45,7 @@ resource "google_compute_subnetwork" "prod_subnet" {
   ip_cidr_range = var.prod_subnet_cidr
   region        = var.region
   
-  private_ip_google_access = true
+  private_ip_google_access = false
   
   log_config {
     aggregation_interval = "INTERVAL_5_SEC"
