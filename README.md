@@ -19,8 +19,8 @@
 ```mermaid
 graph TB
     subgraph "Project: on-prem-sim"
-        VM[Dev Workstation<br/>10.0.1.x]
-        subgraph "dev-vpc (10.0.0.0/16)"
+        subgraph "dev-vpc 10.0.0.0/16"
+            VM[Dev Workstation<br/>10.0.1.x]
             DNS[Private DNS Zone<br/>googleapis.com]
             CR1[Cloud Router<br/>ASN: 64512]
             VPN1[HA VPN Gateway]
@@ -30,7 +30,7 @@ graph TB
     end
     
     subgraph "Project: gemini-api-prod"
-        subgraph "prod-vpc (10.1.0.0/16)"
+        subgraph "prod-vpc 10.1.0.0/16"
             CR2[Cloud Router<br/>ASN: 64513]
             VPN2[HA VPN Gateway]
             PGA[Private Google Access<br/>Enabled on Subnet]
@@ -49,13 +49,14 @@ graph TB
     VM -->|3. API Request| CR1
     CR1 -->|4. Routes via VPN| API
     
-    classDef devClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef prodClass fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    classDef apiClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    
-    class VM,DNS,CR1,VPN1 devClass
-    class CR2,VPN2,PGA prodClass
-    class API apiClass
+    style VM fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style DNS fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style CR1 fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style VPN1 fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style CR2 fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style VPN2 fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style PGA fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style API fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
 ## 핵심 동작 원리
