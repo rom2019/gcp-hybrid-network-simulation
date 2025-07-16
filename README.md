@@ -17,38 +17,27 @@
 ## 아키텍처
 
 ```mermaid
-graph TD
-    subgraph "On-Premises Environment (Simulated)"
-        WORKSTATION["Dev Workstation"]
+graph LR
+    subgraph "On-Premises (Simulated)"
+        A[Dev Workstation] --> B{Private DNS};
+        B -- "Returns Private IP" --> A;
+        A -- "API Request" --> C{On-Prem Router};
     end
 
     subgraph "Google Cloud"
-        subgraph "Project: on-prem-sim"
-            VPC1["On-Prem VPC"]
-            ROUTER1["Cloud Router (ASN 64512)"]
-            DNS["Private DNS Zone<br>*.googleapis.com"]
-            WORKSTATION -- "Resolves DNS" --> DNS
-            WORKSTATION -- "Sends API Traffic" --> ROUTER1
-            VPC1 -- contains --> ROUTER1
-            VPC1 -- contains --> DNS
-        end
-
-        subgraph "Project: gemini-api-prod"
-            VPC2["Prod VPC"]
-            ROUTER2["Cloud Router (ASN 64513)"]
-            PGA["Private Google Access<br>(Enabled on Subnet)"]
-            VPC2 -- contains --> ROUTER2
-            VPC2 -- enables --> PGA
-        end
+        D{GCP Router};
+        D -- "BGP Advertise<br>private.googleapis.com route" --> C;
     end
 
     subgraph "Google Services"
-        APIs["Google APIs<br>(private.googleapis.com)"]
+        E[Google APIs]
     end
 
-    ROUTER1 -- "HA VPN Tunnel" <--> ROUTER2
-    ROUTER2 -- "BGP: Advertises route to Google APIs" --> ROUTER1
-    ROUTER1 -- "Routes traffic to" --> APIs
+    C -- "HA VPN Tunnel" <--> D;
+    C -- "Traffic routed via Tunnel" --> E;
+
+    style A fill:#fef2f2,stroke:#ef4444,stroke-width:2px
+    style E fill:#e3f2fd,stroke:#3b82f6,stroke-width:2px
 ```
 
 ## 핵심 동작 원리
