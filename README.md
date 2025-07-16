@@ -17,27 +17,45 @@
 ## 아키텍처
 
 ```mermaid
-graph LR
-    subgraph "On-Premises (Simulated)"
-        A[Dev Workstation] --> B{Private DNS};
-        B -- "Returns Private IP" --> A;
-        A -- "API Request" --> C{On-Prem Router};
+graph TB
+    subgraph "Project: on-prem-sim"
+        VM[Dev Workstation<br/>10.0.1.x]
+        subgraph "dev-vpc (10.0.0.0/16)"
+            DNS[Private DNS Zone<br/>googleapis.com]
+            CR1[Cloud Router<br/>ASN: 64512]
+            VPN1[HA VPN Gateway]
+        end
+        VM --> DNS
+        VM --> CR1
     end
-
-    subgraph "Google Cloud"
-        D{GCP Router};
-        D -- "BGP Advertise<br>private.googleapis.com route" --> C;
+    
+    subgraph "Project: gemini-api-prod"
+        subgraph "prod-vpc (10.1.0.0/16)"
+            CR2[Cloud Router<br/>ASN: 64513]
+            VPN2[HA VPN Gateway]
+            PGA[Private Google Access<br/>Enabled on Subnet]
+        end
     end
-
+    
     subgraph "Google Services"
-        E[Google APIs]
+        API[Google APIs<br/>199.36.153.8/30]
     end
-
-    C -- "HA VPN Tunnel" <--> D;
-    C -- "Traffic routed via Tunnel" --> E;
-
-    style A fill:#fef2f2,stroke:#ef4444,stroke-width:2px
-    style E fill:#e3f2fd,stroke:#3b82f6,stroke-width:2px
+    
+    VPN1 -.->|2x HA Tunnels| VPN2
+    CR1 <-->|BGP Session| CR2
+    CR2 -->|Advertises<br/>199.36.153.8/30| CR1
+    VM -->|1. DNS Query| DNS
+    DNS -->|2. Returns<br/>199.36.153.x| VM
+    VM -->|3. API Request| CR1
+    CR1 -->|4. Routes via VPN| API
+    
+    classDef devClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef prodClass fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef apiClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    
+    class VM,DNS,CR1,VPN1 devClass
+    class CR2,VPN2,PGA prodClass
+    class API apiClass
 ```
 
 ## 핵심 동작 원리
