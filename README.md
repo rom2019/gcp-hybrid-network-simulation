@@ -18,36 +18,91 @@
 
 ```mermaid
 graph TB
-    subgraph OnPremProject["Project: on-prem-sim"]
+    subgraph DevProject["🏢 Dev Project: on-prem-sim-{suffix}"]
         subgraph DevVPC["VPC: dev-vpc (10.0.0.0/16)"]
-            DevVM["Dev Workstation<br/>10.0.1.x"]
-            DevDNS["Private DNS Zone<br/>googleapis.com → 199.36.153.x"]
-            DevRouter["Cloud Router<br/>ASN: 64512"]
-            DevVPN["HA VPN Gateway"]
+            subgraph DevSubnet["Subnet: dev-subnet (10.0.1.0/24)"]
+                DevVM["🖥️ dev-workstation<br/>Type: e2-medium<br/>OS: Debian 11<br/>IP: 10.0.1.x<br/>Tags: iap-ssh, vpn-allowed"]
+            end
+            
+            DevDNS["🌐 Private DNS Zone<br/>googleapis.com<br/>→ 199.36.153.8-11"]
+            
+            DevVPN["🔐 HA VPN Gateway<br/>dev-vpn-gateway<br/>2 Interfaces"]
+            
+            DevRouter["🔄 Cloud Router<br/>dev-vpn-router<br/>ASN: 64512<br/>Advertises: 10.0.1.0/24"]
+            
+            subgraph DevFirewall["🛡️ Firewall Rules"]
+                FW1["dev-allow-iap-ssh<br/>Source: 35.235.240.0/20<br/>Port: 22"]
+                FW2["dev-allow-internal<br/>Source: 10.0.0.0/16, 10.1.0.0/16<br/>All ports"]
+                FW3["dev-allow-vpn<br/>ESP, UDP 500/4500"]
+            end
         end
+        
+        DevSA["🔑 Service Account<br/>dev-vm-sa<br/>Roles:<br/>- aiplatform.user (both projects)<br/>- logging.logWriter<br/>- monitoring.metricWriter"]
     end
     
-    subgraph ProdProject["Project: gemini-api-prod"]
+    subgraph ProdProject["🏢 Prod Project: gemini-api-prod-{suffix}"]
         subgraph ProdVPC["VPC: prod-vpc (10.1.0.0/16)"]
-            ProdRouter["Cloud Router<br/>ASN: 64513<br/>Advertises: 199.36.153.8/30"]
-            ProdVPN["HA VPN Gateway"]
-            ProdPGA["Private Google Access<br/>✓ Enabled"]
+            subgraph ProdSubnet["Subnet: prod-subnet (10.1.1.0/24)"]
+                ProdVM["🖥️ prod-test-vm<br/>Type: e2-micro<br/>OS: Debian 11<br/>IP: 10.1.1.x"]
+            end
+            
+            ProdVPN["🔐 HA VPN Gateway<br/>prod-vpn-gateway<br/>2 Interfaces"]
+            
+            ProdRouter["🔄 Cloud Router<br/>prod-vpn-router<br/>ASN: 64513<br/>Advertises:<br/>- 10.1.1.0/24<br/>- 199.36.153.8/30 (PGA)"]
+            
+            subgraph ProdFirewall["🛡️ Firewall Rules"]
+                PFW1["prod-allow-vpn<br/>ESP, UDP 500/4500"]
+                PFW2["prod-allow-internal<br/>Source: 10.0.0.0/16, 10.1.0.0/16"]
+                PFW3["prod-restrict-api-access<br/>Source: 10.0.1.0/24<br/>Port: 443"]
+                PFW4["prod-deny-ssh<br/>Deny all SSH"]
+            end
         end
     end
     
-    subgraph GoogleCloud["Google Services"]
-        GoogleAPIs["Google APIs<br/>private.googleapis.com<br/>199.36.153.8/30"]
+    subgraph VPNConnection["🔗 VPN Connection"]
+        Tunnel1["Tunnel 1<br/>dev-to-prod-tunnel1 ↔ prod-to-dev-tunnel1<br/>Interface 0"]
+        Tunnel2["Tunnel 2<br/>dev-to-prod-tunnel2 ↔ prod-to-dev-tunnel2<br/>Interface 1"]
+        
+        BGP1["BGP Session 1<br/>169.254.0.1/30 ↔ 169.254.0.2/30"]
+        BGP2["BGP Session 2<br/>169.254.1.1/30 ↔ 169.254.1.2/30"]
     end
     
+    subgraph GoogleServices["☁️ Google Cloud Services"]
+        GoogleAPIs["Google APIs<br/>private.googleapis.com<br/>199.36.153.8/30"]
+        GeminiAPI["Gemini API<br/>aiplatform.googleapis.com"]
+    end
+    
+    subgraph APIs["📋 Enabled APIs"]
+        DevAPIs["Dev Project APIs:<br/>- compute<br/>- dns<br/>- iam<br/>- aiplatform"]
+        ProdAPIs["Prod Project APIs:<br/>- compute<br/>- iam<br/>- aiplatform<br/>- cloudaicompanion"]
+    end
+    
+    %% Connections
     DevVM -->|"1. DNS Query"| DevDNS
     DevDNS -->|"2. Returns 199.36.153.x"| DevVM
     DevVM -->|"3. API Request"| DevRouter
+    DevRouter -->|"4. Routes via VPN"| DevVPN
     
-    DevVPN <-->|"HA VPN Tunnels<br/>(2x for redundancy)"| ProdVPN
-    DevRouter <-->|"BGP Session"| ProdRouter
-    ProdRouter -.->|"BGP: Advertises<br/>Google API routes"| DevRouter
+    DevVPN -.->|"HA VPN"| Tunnel1
+    DevVPN -.->|"HA VPN"| Tunnel2
+    Tunnel1 -.->|"HA VPN"| ProdVPN
+    Tunnel2 -.->|"HA VPN"| ProdVPN
     
-    DevRouter -->|"4. Routes traffic<br/>via VPN tunnel"| GoogleAPIs
+    DevRouter <-->|"BGP"| BGP1
+    DevRouter <-->|"BGP"| BGP2
+    BGP1 <-->|"BGP"| ProdRouter
+    BGP2 <-->|"BGP"| ProdRouter
+    
+    ProdRouter -->|"5. Advertises PGA routes"| GoogleAPIs
+    DevVM -.->|"6. Private API Access"| GeminiAPI
+    
+    DevVM -.->|"Uses"| DevSA
+    ProdVM -.->|"Internal only"| ProdSubnet
+    
+    style DevProject fill:#e3f2fd
+    style ProdProject fill:#fff3e0
+    style VPNConnection fill:#f3e5f5
+    style GoogleServices fill:#e8f5e9
 ```
 
 ## 핵심 동작 원리
