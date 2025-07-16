@@ -17,56 +17,28 @@
 ## 아키텍처
 
 ```mermaid
-graph LR
+graph TD
     subgraph "On-Premises (Simulated)"
-        direction TB
-        subgraph "Project: on-prem-sim"
-            VM["fa:fa-laptop Dev Workstation<br>10.0.1.x"]
-
-            subgraph "VPC: on-prem-vpc (10.0.0.0/16)"
-                DNS["fa:fa-server Private DNS Zone<br>googleapis.com -> 199.36.153.8/30"]
-                CR1["fa:fa-route Cloud Router<br>ASN 64512"]
-            end
-        end
+        OnPremVM["Dev Workstation VM<br>10.0.1.x"]
+        OnPremRouter["On-Prem Cloud Router<br>ASN 64512"]
+        OnPremDNS["Private DNS Zone<br>googleapis.com -> private IP"]
+        OnPremVM -- "API Call" --> OnPremRouter
+        OnPremVM -- "DNS Query" --> OnPremDNS
     end
 
     subgraph "Google Cloud"
-        direction TB
-        subgraph "Project: gemini-api-prod"
-            subgraph "VPC: prod-vpc (10.1.0.0/16)"
-                PGA["fa:fa-lock Private Google Access<br>(Enabled)"]
-                CR2["fa:fa-route Cloud Router<br>ASN 64513"]
-            end
-        end
+        GCPRouter["GCP Cloud Router<br>ASN 64513"]
+        PGA["Prod VPC with<br>Private Google Access"]
+        GCPRouter --> PGA
     end
-
-    subgraph " "
-      direction LR
-      VPN_TUNNEL[("fa:fa-shield-alt<br>HA VPN<br>Tunnel")]
-    end
-
 
     subgraph "Google Services"
-       G_API["fa:fa-cloud Google APIs<br>(e.g., Gemini)<br>private.googleapis.com<br>199.36.153.8/30"]
+        GoogleAPI["Google APIs<br>private.googleapis.com<br>199.36.153.8/30"]
     end
 
-    %% Data Flow
-    VM -- "1. DNS Query" --> DNS
-    DNS -- "2. Return 199.36.153.x" --> VM
-    VM -- "3. API Request" --> CR1
-
-    %% Connections
-    CR1 <--> VPN_TUNNEL <--> CR2
-    CR2 -. "Advertise Route<br>199.36.153.8/30" .-> CR1
-    VPN_TUNNEL -- "4. Route traffic to Google" --> G_API
-
-
-    %% Styling
-    style VM fill:#fef2f2,stroke:#ef4444
-    style G_API fill:#eff6ff,stroke:#3b82f6
-    style CR2 fill:#f0fdf4,stroke:#22c55e
-    style PGA fill:#f0fdf4,stroke:#22c55e
-    style VPN_TUNNEL fill:#fafafa,stroke:#6b7280,stroke-dasharray: 5 5
+    OnPremRouter -- "HA VPN Tunnel" <--> GCPRouter
+    GCPRouter -- "BGP: Advertises 199.36.153.8/30" --> OnPremRouter
+    OnPremRouter -- "Traffic via Tunnel" --> GoogleAPI
 ```
 
 ## 핵심 동작 원리
