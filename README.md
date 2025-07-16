@@ -17,21 +17,38 @@
 ## 아키텍처
 
 ```mermaid
-sequenceDiagram
-    participant DevWorkstation as Dev Workstation
-    participant OnPremDNS as On-Prem DNS
-    participant OnPremRouter as On-Prem Router
-    participant GCPRouter as GCP Router
-    participant GoogleAPI as Google API
+graph TD
+    subgraph "On-Premises Environment (Simulated)"
+        WORKSTATION["Dev Workstation"]
+    end
 
-    GCPRouter->>OnPremRouter: BGP: Advertise route for 199.36.153.8/30
+    subgraph "Google Cloud"
+        subgraph "Project: on-prem-sim"
+            VPC1["On-Prem VPC"]
+            ROUTER1["Cloud Router (ASN 64512)"]
+            DNS["Private DNS Zone<br>*.googleapis.com"]
+            WORKSTATION -- "Resolves DNS" --> DNS
+            WORKSTATION -- "Sends API Traffic" --> ROUTER1
+            VPC1 -- contains --> ROUTER1
+            VPC1 -- contains --> DNS
+        end
 
-    DevWorkstation->>OnPremDNS: 1. DNS Query for api.googleapis.com
-    OnPremDNS-->>DevWorkstation: 2. Return private IP (e.g., 199.36.153.10)
+        subgraph "Project: gemini-api-prod"
+            VPC2["Prod VPC"]
+            ROUTER2["Cloud Router (ASN 64513)"]
+            PGA["Private Google Access<br>(Enabled on Subnet)"]
+            VPC2 -- contains --> ROUTER2
+            VPC2 -- enables --> PGA
+        end
+    end
 
-    DevWorkstation->>OnPremRouter: 3. API Request to private IP
-    OnPremRouter->>GoogleAPI: 4. Route traffic via VPN
-    GoogleAPI-->>DevWorkstation: 5. API Response
+    subgraph "Google Services"
+        APIs["Google APIs<br>(private.googleapis.com)"]
+    end
+
+    ROUTER1 -- "HA VPN Tunnel" <--> ROUTER2
+    ROUTER2 -- "BGP: Advertises route to Google APIs" --> ROUTER1
+    ROUTER1 -- "Routes traffic to" --> APIs
 ```
 
 ## 핵심 동작 원리
