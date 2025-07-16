@@ -55,8 +55,8 @@ output "dev_vm_internal_ip" {
 }
 
 output "dev_vm_external_ip" {
-  description = "Dev VM 외부 IP"
-  value       = google_compute_instance.dev_workstation.network_interface[0].access_config[0].nat_ip
+  description = "Dev VM 외부 IP (IAP 사용으로 외부 IP 없음)"
+  value       = "N/A - Using Cloud IAP for SSH access"
 }
 
 # 서비스 계정 정보
@@ -101,16 +101,16 @@ output "gemini_test_instructions" {
   EOT
 }
 
-# VPC Service Controls 정보 (활성화된 경우)
-output "vpc_service_controls_enabled" {
-  description = "VPC Service Controls 활성화 여부"
-  value       = var.enable_vpc_service_controls
-}
-
-output "service_perimeter_name" {
-  description = "Service Perimeter 이름"
-  value       = var.enable_vpc_service_controls && var.organization_id != "" ? google_access_context_manager_service_perimeter.gemini_perimeter[0].name : "Not enabled"
-}
+## VPC Service Controls 정보 (활성화된 경우)
+#output "vpc_service_controls_enabled" {
+#  description = "VPC Service Controls 활성화 여부"
+#  value       = var.enable_vpc_service_controls
+#}
+#
+#output "service_perimeter_name" {
+#  description = "Service Perimeter 이름"
+#  value       = var.enable_vpc_service_controls && var.organization_id != "" ? google_access_context_manager_service_perimeter.gemini_perimeter[0].name : "Not enabled"
+#}
 
 # 중요 참고사항
 output "important_notes" {

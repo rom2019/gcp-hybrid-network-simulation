@@ -52,10 +52,11 @@ resource "google_project" "prod_project" {
 # Dev 프로젝트 API 활성화
 resource "google_project_service" "dev_apis" {
   for_each = toset([
-    "compute.googleapis.com",
-    "vpn-gateway.googleapis.com",
+    "compute.googleapis.com",              # Includes VPN Gateway functionality
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
+    "dns.googleapis.com",                  # Cloud DNS for Private Google Access
+    "aiplatform.googleapis.com",           # Vertex AI API for Gemini access
   ])
   
   project = google_project.dev_project.project_id
@@ -67,8 +68,7 @@ resource "google_project_service" "dev_apis" {
 # Prod 프로젝트 API 활성화
 resource "google_project_service" "prod_apis" {
   for_each = toset([
-    "compute.googleapis.com",
-    "vpn-gateway.googleapis.com",
+    "compute.googleapis.com",              # Includes VPN Gateway functionality
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "aiplatform.googleapis.com",

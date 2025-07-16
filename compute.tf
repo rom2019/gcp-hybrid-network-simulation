@@ -34,7 +34,7 @@ resource "google_compute_instance" "dev_workstation" {
   zone         = var.zone
   project      = google_project.dev_project.project_id
   
-  tags = ["dev-vm", "ssh-allowed", "vpn-allowed"]
+  tags = ["dev-vm", "ssh-allowed", "vpn-allowed", "iap-ssh"]
   
   boot_disk {
     initialize_params {
@@ -44,13 +44,17 @@ resource "google_compute_instance" "dev_workstation" {
     }
   }
   
+  # Shielded VM configuration (required by org policy)
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }
+  
   network_interface {
     subnetwork = google_compute_subnetwork.dev_subnet.id
     
-    # 외부 IP 할당 (SSH 접속용)
-    access_config {
-      // Ephemeral public IP
-    }
+    # No external IP - will use Cloud IAP for SSH access
   }
   
   service_account {
@@ -114,7 +118,7 @@ EOF
 
 # Prod 환경의 테스트용 VM (선택사항)
 resource "google_compute_instance" "prod_test_vm" {
-  count        = 0  # 기본적으로 생성하지 않음
+  count        = 1  
   name         = "prod-test-vm"
   machine_type = "e2-micro"
   zone         = var.zone
@@ -130,6 +134,12 @@ resource "google_compute_instance" "prod_test_vm" {
     }
   }
   
+  # Shielded VM configuration (required by org policy)
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }  
   network_interface {
     subnetwork = google_compute_subnetwork.prod_subnet.id
     # 외부 IP 없음 (내부 전용)

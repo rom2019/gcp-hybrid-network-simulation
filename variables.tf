@@ -91,3 +91,9 @@ variable "project_labels" {
     purpose     = "gemini-api-test"
   }
 }
+
+variable "user_email" {
+  description = "User email for IAP SSH access"
+  type        = string
+  default = "admin@romij.altostrat.com"
+}

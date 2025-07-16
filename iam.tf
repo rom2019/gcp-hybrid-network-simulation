@@ -1,6 +1,30 @@
-# iam.tf - IAM 역할 및 권한 설정
+# iam.tf - IAM roles and permissions
 
-# Gemini API 사용을 위한 커스텀 역할 (선택사항)
+# Service account for Dev VM
+# (Already defined in compute.tf, just referencing here for clarity)
+
+# Enable Cloud IAP for SSH access
+resource "google_project_iam_member" "iap_ssh_user" {
+  project = google_project.dev_project.project_id
+  role    = "roles/iap.tunnelResourceAccessor"
+  member  = "user:${var.user_email}"  # You'll need to define this variable
+}
+
+# Compute Instance Admin for the user (to SSH via IAP)
+resource "google_project_iam_member" "compute_instance_admin" {
+  project = google_project.dev_project.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "user:${var.user_email}"
+}
+
+# Service Account User permission (required for SSH via IAP)
+resource "google_project_iam_member" "service_account_user" {
+  project = google_project.dev_project.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "user:${var.user_email}"
+}
+
+# Gemini API custom role (optional)
 resource "google_project_iam_custom_role" "gemini_user" {
   role_id     = "geminiApiUser"
   title       = "Gemini API User"
@@ -9,14 +33,15 @@ resource "google_project_iam_custom_role" "gemini_user" {
   
   permissions = [
     "aiplatform.endpoints.predict",
-    "aiplatform.models.predict",
+    "aiplatform.models.get",
+    "aiplatform.models.list",
     "aiplatform.locations.get",
     "aiplatform.locations.list",
     "resourcemanager.projects.get",
   ]
 }
 
-# Prod 프로젝트 기본 IAM 바인딩
+# Prod project IAM binding for AI Platform
 resource "google_project_iam_binding" "prod_ai_users" {
   project = google_project.prod_project.project_id
   role    = "roles/aiplatform.user"
@@ -26,22 +51,14 @@ resource "google_project_iam_binding" "prod_ai_users" {
   ]
 }
 
-# VPC Service Controls를 위한 Access Context Manager Admin (조직 레벨)
-resource "google_organization_iam_member" "access_context_admin" {
-  count  = var.enable_vpc_service_controls && var.organization_id != "" ? 1 : 0
-  org_id = var.organization_id
-  role   = "roles/accesscontextmanager.policyAdmin"
-  member = "serviceAccount:${google_service_account.terraform_sa.email}"
-}
-
-# Terraform 실행을 위한 서비스 계정 (선택사항)
+# Terraform service account (optional)
 resource "google_service_account" "terraform_sa" {
   account_id   = "terraform-sa"
   display_name = "Terraform Service Account"
   project      = google_project.dev_project.project_id
 }
 
-# Terraform SA에 필요한 역할들
+# Terraform SA roles for Dev project
 resource "google_project_iam_member" "terraform_dev_roles" {
   for_each = toset([
     "roles/compute.admin",
@@ -54,6 +71,7 @@ resource "google_project_iam_member" "terraform_dev_roles" {
   member  = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
 
+# Terraform SA roles for Prod project
 resource "google_project_iam_member" "terraform_prod_roles" {
   for_each = toset([
     "roles/compute.admin",
@@ -66,7 +84,7 @@ resource "google_project_iam_member" "terraform_prod_roles" {
   member  = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
 
-# 로깅 및 모니터링을 위한 역할
+# Logging roles
 resource "google_project_iam_member" "logging_roles" {
   for_each = toset([
     google_project.dev_project.project_id,
@@ -78,7 +96,7 @@ resource "google_project_iam_member" "logging_roles" {
   member  = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
 
-# VPN 관리를 위한 역할
+# VPN admin roles
 resource "google_project_iam_member" "vpn_admin_dev" {
   project = google_project.dev_project.project_id
   role    = "roles/compute.networkAdmin"
@@ -91,7 +109,7 @@ resource "google_project_iam_member" "vpn_admin_prod" {
   member  = "serviceAccount:${google_service_account.terraform_sa.email}"
 }
 
-# 감사 로그 설정
+# Audit logging for Gemini API
 resource "google_project_iam_audit_config" "prod_audit" {
   project = google_project.prod_project.project_id
   service = "aiplatform.googleapis.com"
@@ -109,20 +127,7 @@ resource "google_project_iam_audit_config" "prod_audit" {
   }
 }
 
-# 조직 정책 (선택사항 - Organization이 있는 경우)
-resource "google_org_policy_policy" "restrict_vpn_peer_ips" {
-  count  = var.organization_id != "" ? 1 : 0
-  name   = "organizations/${var.organization_id}/policies/compute.restrictVpnPeerIPs"
-  parent = "organizations/${var.organization_id}"
-  
-  spec {
-    rules {
-      allow_all = "TRUE"
-    }
-  }
-}
-
-# Private Google Access를 위한 DNS 설정
+# Private Google Access DNS configuration
 resource "google_dns_managed_zone" "googleapis" {
   name        = "googleapis-zone"
   dns_name    = "googleapis.com."
