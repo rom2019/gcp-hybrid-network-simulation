@@ -17,28 +17,21 @@
 ## 아키텍처
 
 ```mermaid
-graph TD
-    subgraph "On-Premises (Simulated)"
-        OnPremVM["Dev Workstation VM<br>10.0.1.x"]
-        OnPremRouter["On-Prem Cloud Router<br>ASN 64512"]
-        OnPremDNS["Private DNS Zone<br>googleapis.com -> private IP"]
-        OnPremVM -- "API Call" --> OnPremRouter
-        OnPremVM -- "DNS Query" --> OnPremDNS
-    end
+sequenceDiagram
+    participant DevWorkstation as Dev Workstation
+    participant OnPremDNS as On-Prem DNS
+    participant OnPremRouter as On-Prem Router
+    participant GCPRouter as GCP Router
+    participant GoogleAPI as Google API
 
-    subgraph "Google Cloud"
-        GCPRouter["GCP Cloud Router<br>ASN 64513"]
-        PGA["Prod VPC with<br>Private Google Access"]
-        GCPRouter --> PGA
-    end
+    GCPRouter->>OnPremRouter: BGP: Advertise route for 199.36.153.8/30
 
-    subgraph "Google Services"
-        GoogleAPI["Google APIs<br>private.googleapis.com<br>199.36.153.8/30"]
-    end
+    DevWorkstation->>OnPremDNS: 1. DNS Query for api.googleapis.com
+    OnPremDNS-->>DevWorkstation: 2. Return private IP (e.g., 199.36.153.10)
 
-    OnPremRouter -- "HA VPN Tunnel" <--> GCPRouter
-    GCPRouter -- "BGP: Advertises 199.36.153.8/30" --> OnPremRouter
-    OnPremRouter -- "Traffic via Tunnel" --> GoogleAPI
+    DevWorkstation->>OnPremRouter: 3. API Request to private IP
+    OnPremRouter->>GoogleAPI: 4. Route traffic via VPN
+    GoogleAPI-->>DevWorkstation: 5. API Response
 ```
 
 ## 핵심 동작 원리
