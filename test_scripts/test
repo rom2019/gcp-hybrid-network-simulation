@@ -1,0 +1,64 @@
+-----------
+dig aiplatform.googleapis.com +trace
+traceroute aiplatform.googleapis.com
+X : (command not found) mtr aiplatform.googleapis.com
+X : ip route show  # Linux
+
+cat << EOF > request.json
+{
+    "contents": [
+        {
+            "role": "user",
+            "parts": [
+                {
+                    "text": "hi"
+                }
+            ]
+        }
+    ]
+    , "generationConfig": {
+        "temperature": 1
+        ,"maxOutputTokens": 65535
+        ,"topP": 1
+        ,"seed": 0
+        ,"thinkingConfig": {
+            "thinkingBudget": -1
+        }
+    },
+    "safetySettings": [
+        {
+            "category": "HARM_CATEGORY_HATE_SPEECH",
+            "threshold": "OFF"
+        },
+        {
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "OFF"
+        },
+        {
+            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "threshold": "OFF"
+        },
+        {
+            "category": "HARM_CATEGORY_HARASSMENT",
+            "threshold": "OFF"
+        }
+    ]
+}
+EOF
+
+PROJECT_ID="my-gemini-prod-088dfe15"
+LOCATION_ID="global"
+API_ENDPOINT="aiplatform.googleapis.com"
+MODEL_ID="gemini-2.5-flash"
+GENERATE_CONTENT_API="streamGenerateContent"
+
+curl -v \
+-X POST \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $(gcloud auth print-access-token)" \
+"https://aiplatform.googleapis.com/v1/projects/my-gemini-prod-088dfe15/locations/global/publishers/google/models/gemini-2.5-flash:streamGenerateContent" -d '@request.json'
+
+netstat -an | grep 443
+sudo tcpdump -i any -n host aiplatform.googleapis.com
+
+

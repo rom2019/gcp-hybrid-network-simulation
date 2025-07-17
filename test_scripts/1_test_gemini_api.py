@@ -21,7 +21,7 @@ except ImportError as e:
     sys.exit(1)
 
 # 환경 변수에서 프로젝트 ID 가져오기 (또는 하드코딩)
-PROD_PROJECT_ID = os.environ.get('PROD_PROJECT_ID', 'gemini-api-prod')
+PROD_PROJECT_ID = os.environ.get('PROD_PROJECT_ID', 'my-gemini-prod-088dfe15')
 LOCATION = os.environ.get('LOCATION', 'us-central1')
 
 def test_authentication():
@@ -57,7 +57,7 @@ def test_gemini_model():
     """Gemini 모델 접근 테스트"""
     print("\n3. Testing Gemini Model Access...")
     try:
-        model = GenerativeModel("gemini-pro")
+        model = GenerativeModel("gemini-2.5-flash")
         print(f"   ✓ Gemini Pro model loaded")
         return model
     except Exception as e:

@@ -58,8 +58,8 @@ PROD_SUBNET="10.1.1.0/24"
 echo "   Testing connectivity to Prod subnet ($PROD_SUBNET)..."
 
 # Ping 테스트 (예시 IP)
-ping -c 3 -W 2 10.1.1.1 > /dev/null 2>&1
-test_result $? "Ping to Prod network gateway (10.1.1.1)"
+ping -c 3 -W 2 10.1.1.2 > /dev/null 2>&1
+test_result $? "Ping to Prod VM (10.1.1.2)"
 echo ""
 
 # 5. Google APIs 연결 테스트
